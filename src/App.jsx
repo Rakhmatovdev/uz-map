@@ -17,8 +17,14 @@ const REGION_NAMES = {
 }
 const COUNTRY_NAMES = { KAZ: 'Qozog‘iston', KGZ: 'Qirg‘iziston', TJK: 'Tojikiston', TKM: 'Turkmaniston', AFG: 'Afg‘oniston' }
 const DISTRICT_PARENT_FALLBACK = { Khazarasp: 'UZ-XO', Sokh: 'UZ-FA', 'Shirin city': 'UZ-SI' }
+const DISTRICT_COLORS = ['#18c956', '#24d967', '#16b94e', '#34e176', '#20c866', '#42d879']
 
 const regionName = (feature) => REGION_NAMES[feature?.properties.shapeISO] ?? feature?.properties.shapeName ?? ''
+
+function featureColor(feature) {
+  const seed = [...feature.properties.shapeID].reduce((total, letter) => total + letter.charCodeAt(0), 0)
+  return DISTRICT_COLORS[seed % DISTRICT_COLORS.length]
+}
 
 function initialTheme() {
   const saved = localStorage.getItem('uzmap-theme')
@@ -105,7 +111,6 @@ function App() {
   const [regionMenu, setRegionMenu] = useState(false)
   const [districtMenu, setDistrictMenu] = useState(false)
   const [resetSignal, setResetSignal] = useState(0)
-  const [clock, setClock] = useState(new Date())
   const [error, setError] = useState('')
   const navRef = useRef(null)
 
@@ -113,11 +118,6 @@ function App() {
     document.documentElement.dataset.theme = theme
     localStorage.setItem('uzmap-theme', theme)
   }, [theme])
-
-  useEffect(() => {
-    const timer = setInterval(() => setClock(new Date()), 1000)
-    return () => clearInterval(timer)
-  }, [])
 
   useEffect(() => {
     const closeMenus = (event) => {
@@ -144,6 +144,10 @@ function App() {
   const districtSet = useMemo(() => districts && regionISO ? { ...districts, features: districts.features.filter((f) => f.properties.parentISO === regionISO) } : null, [districts, regionISO])
   const district = useMemo(() => districtSet?.features.find((f) => f.properties.shapeID === districtID) ?? null, [districtID, districtSet])
   const mask = useMemo(() => regions ? makeOutsideMask(regions.features) : null, [regions])
+  const focusMask = useMemo(() => {
+    const target = district ?? region
+    return target ? makeOutsideMask([target]) : null
+  }, [district, region])
   const orderedRegions = useMemo(() => regions ? [...regions.features].sort((a, b) => regionName(a).localeCompare(regionName(b), 'uz')) : [], [regions])
   const orderedDistricts = useMemo(() => districtSet ? [...districtSet.features].sort((a, b) => a.properties.shapeName.localeCompare(b.properties.shapeName)) : [], [districtSet])
 
@@ -156,9 +160,9 @@ function App() {
     const active = feature.properties.shapeISO === regionISO
     const muted = Boolean(regionISO && !active)
     return {
-      color: theme === 'dark' ? '#3377b8' : '#14508a', weight: active ? 3.2 : 1.6,
-      opacity: muted ? .2 : .82, fillColor: active ? '#1f863c' : '#3b6b50',
-      fillOpacity: muted ? .08 : active ? .42 : .27,
+      color: active ? '#238cff' : (theme === 'dark' ? '#31658d' : '#315d7e'), weight: active ? 3.4 : 1.45,
+      opacity: muted ? .13 : active ? 1 : .64, fillColor: active ? '#105f34' : '#315747',
+      fillOpacity: muted ? .035 : active ? (districtID ? .06 : .2) : .2,
       className: `region-shape${active ? ' region-selected' : ''}${muted ? ' region-muted' : ''}${active && districtID ? ' region-under-focus' : ''}`,
     }
   }
@@ -166,16 +170,13 @@ function App() {
     const active = feature.properties.shapeID === districtID
     const muted = Boolean(districtID && !active)
     return {
-      color: active ? '#59a2ff' : '#347fd2', weight: active ? 3.5 : 2,
-      opacity: muted ? .24 : 1, fillColor: active ? '#28d866' : '#17b94f',
-      fillOpacity: muted ? .12 : active ? .85 : .64,
+      color: active ? '#76b7ff' : '#2485f5', weight: active ? 3.8 : 2.15,
+      opacity: muted ? .34 : 1,
+      fillColor: active ? '#30ed72' : (districtID ? '#102d3b' : featureColor(feature)),
+      fillOpacity: muted ? .28 : active ? .92 : .72,
       className: `district-shape${active ? ' district-selected' : ''}${muted ? ' district-muted' : ''}`,
     }
   }
-
-  const month = ['YAN', 'FEV', 'MAR', 'APR', 'MAY', 'IYUN', 'IYUL', 'AVG', 'SEN', 'OKT', 'NOY', 'DEK'][clock.getMonth()]
-  const dateLabel = `${clock.getDate()} ${month}, ${clock.getFullYear()}`
-  const timeLabel = clock.toLocaleTimeString('uz-UZ', { hour12: false })
 
   return <main className="app-shell">
     <div className="map-shell">
@@ -186,6 +187,7 @@ function App() {
           <MapMotion country={regions} region={region} district={district} resetSignal={resetSignal} />
           <GeoJSON key={`mask-${theme}`} data={mask} interactive={false} style={{ color: 'transparent', fillColor: theme === 'dark' ? '#070b0f' : '#aeb6b4', fillOpacity: theme === 'dark' ? .72 : .72, fillRule: 'evenodd', className: 'outside-mask' }} />
           <GeoJSON key={`neighbors-${theme}`} data={neighbors} interactive={false} style={{ color: theme === 'dark' ? '#456171' : '#536d76', weight: 1.1, opacity: .35, fillColor: theme === 'dark' ? '#252b2c' : '#aab3b0', fillOpacity: .22, className: 'neighbor-country' }} onEachFeature={(feature, layer) => layer.bindTooltip(COUNTRY_NAMES[feature.properties.countryCode] ?? feature.properties.shapeName, { permanent: true, direction: 'center', className: 'country-label' })} />
+          {focusMask && <GeoJSON key={`focus-${regionISO}-${districtID}`} data={focusMask} interactive={false} style={{ color: 'transparent', fillColor: '#03070b', fillOpacity: district ? .76 : .62, fillRule: 'evenodd', className: 'focus-mask' }} />}
           <GeoJSON key={`regions-${theme}-${regionISO}-${districtID}`} data={regions} style={regionStyle} onEachFeature={(feature, layer) => {
             layer.bindTooltip(regionName(feature), { permanent: !regionISO, direction: 'center', className: 'region-label' })
             if (feature.properties.shapeISO === regionISO) layer.on('add', () => layer.bringToFront())
@@ -200,10 +202,6 @@ function App() {
 
         <header className="floating-navbar" ref={navRef}>
           <button className="nav-brand" onClick={reset} aria-label="O‘zbekiston xaritasiga qaytish"><span><Icon name="layers"/></span><strong>UZMAP</strong></button>
-          <div className="nav-stat clock-stat"><small>{dateLabel}</small><strong>{timeLabel}</strong></div>
-          <div className="nav-stat" title="Offline demo ko‘rsatkich"><small>AQI</small><strong>200.0</strong></div>
-          <div className="nav-stat" title="Offline demo ko‘rsatkich"><small>Harorat</small><strong>+24°C</strong></div>
-
           <div className="nav-select region-select">
             <button className={regionMenu ? 'open' : ''} onClick={() => { setRegionMenu(!regionMenu); setDistrictMenu(false) }}>
               <span>{region ? regionName(region) : 'Viloyatni tanlang'}</span><Icon name="chevron"/>

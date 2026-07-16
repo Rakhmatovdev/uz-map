@@ -14,6 +14,8 @@ UZMAP — O‘zbekistonning birinchi va ikkinchi darajali ma’muriy hududlarini
 - tanlangan hududga `flyToBounds` orqali silliq yaqinlashish;
 - hudud tanlangach ADM2 — tuman va shahar chegaralarini ko‘rsatish;
 - tumanni bosganda yana silliq markazlashish;
+- tanlangan viloyat yoki tuman tashqarisini geometriyaga mos qorong‘i spotlight/blur bilan xiralashtirish;
+- tumanlarni yashil rang palitrasi, neon-ko‘k chegara va tanlangan hududda glow bilan ko‘rsatish;
 - O‘zbekiston tashqarisini xira/blur maska bilan yopish;
 - besh qo‘shni davlat konturini lokal, xira va blur fon qatlamida ko‘rsatish;
 - dark va light rejim, tanlovni `localStorage`da saqlash;
