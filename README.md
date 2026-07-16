@@ -2,6 +2,8 @@
 
 UZMAP — O‘zbekistonning birinchi va ikkinchi darajali ma’muriy hududlarini ko‘rsatadigan, React va Leaflet asosida yozilgan interaktiv veb-xarita. Viloyat yoki respublika darajasidagi hudud tanlanganda xarita silliq animatsiya bilan markazlashadi va shu hududga tegishli tuman hamda shaharlar ochiladi.
 
+**Live demo:** [uzmap-offline.vercel.app](https://uzmap-offline.vercel.app)
+
 > Muhim: O‘zbekistonda birinchi darajadagi **14 ta ma’muriy birlik** bor: 12 viloyat, Qoraqalpog‘iston Respublikasi va Toshkent shahri. Shuning uchun ilovada ba’zan aytiladigan “13 viloyat” emas, geografik ma’lumotdagi barcha 14 hudud ko‘rsatilgan.
 
 ## Tayyor imkoniyatlar
