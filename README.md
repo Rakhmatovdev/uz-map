@@ -13,6 +13,7 @@ UZMAP — O‘zbekistonning birinchi va ikkinchi darajali ma’muriy hududlarini
 - hudud tanlangach ADM2 — tuman va shahar chegaralarini ko‘rsatish;
 - tumanni bosganda yana silliq markazlashish;
 - O‘zbekiston tashqarisini xira/blur maska bilan yopish;
+- besh qo‘shni davlat konturini lokal, xira va blur fon qatlamida ko‘rsatish;
 - dark va light rejim, tanlovni `localStorage`da saqlash;
 - desktop, planshet va telefon uchun responsive interfeys;
 - tashqi tile server yoki xarita API kalitisiz ishlash;
@@ -74,8 +75,9 @@ npm run preview
 uz-map/
 ├─ public/
 │  ├─ data/
-│  │  ├─ uzbekistan-adm1.geojson   # 14 hudud
-│  │  └─ uzbekistan-adm2.geojson   # 199 tuman/shahar
+│  │  ├─ uzbekistan-adm1.geojson       # 14 hudud
+│  │  ├─ uzbekistan-adm2.geojson       # 199 tuman/shahar
+│  │  └─ neighboring-countries.geojson # 5 qo‘shni davlat
 │  └─ favicon.svg
 ├─ src/
 │  ├─ App.jsx                      # xarita logikasi va UI

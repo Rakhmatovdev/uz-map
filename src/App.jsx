@@ -8,13 +8,13 @@ import './App.css'
 const MAP_BOUNDS = [[35.4, 51.4], [47.9, 77.2]]
 
 const REGION_META = {
-  'UZ-AN': ['Andijon', '#29b6a6'], 'UZ-BU': ['Buxoro', '#f2a93b'],
-  'UZ-FA': ['Farg‘ona', '#ee6c8a'], 'UZ-JI': ['Jizzax', '#8b7cf6'],
-  'UZ-NG': ['Namangan', '#39a7e8'], 'UZ-NW': ['Navoiy', '#d18b52'],
-  'UZ-QA': ['Qashqadaryo', '#d75ad5'], 'UZ-QR': ['Qoraqalpog‘iston', '#5b8def'],
-  'UZ-SA': ['Samarqand', '#ec7b3e'], 'UZ-SI': ['Sirdaryo', '#50b86b'],
-  'UZ-SU': ['Surxondaryo', '#e75a50'], 'UZ-TK': ['Toshkent shahri', '#f0c33c'],
-  'UZ-TO': ['Toshkent viloyati', '#3cc4df'], 'UZ-XO': ['Xorazm', '#83b94a'],
+  'UZ-AN': ['Andijon', '#78aa9b'], 'UZ-BU': ['Buxoro', '#78aa9b'],
+  'UZ-FA': ['Farg‘ona', '#78aa9b'], 'UZ-JI': ['Jizzax', '#78aa9b'],
+  'UZ-NG': ['Namangan', '#78aa9b'], 'UZ-NW': ['Navoiy', '#78aa9b'],
+  'UZ-QA': ['Qashqadaryo', '#78aa9b'], 'UZ-QR': ['Qoraqalpog‘iston', '#78aa9b'],
+  'UZ-SA': ['Samarqand', '#78aa9b'], 'UZ-SI': ['Sirdaryo', '#78aa9b'],
+  'UZ-SU': ['Surxondaryo', '#78aa9b'], 'UZ-TK': ['Toshkent shahri', '#78aa9b'],
+  'UZ-TO': ['Toshkent viloyati', '#78aa9b'], 'UZ-XO': ['Xorazm', '#78aa9b'],
 }
 
 // Datasetdagi uchta chegara/enklav geometriyasi ADM1 bilan to‘liq ustma-ust
@@ -61,7 +61,12 @@ function MapMotion({ country, region, district }) {
     const target = district ?? region ?? country
     if (!target) return
     const bounds = L.geoJSON(target).getBounds()
-    if (region || district) map.flyToBounds(bounds, { duration: district ? 1 : 1.45, easeLinearity: 0.16, maxZoom: district ? 9 : 7.5, padding: [52, 52] })
+    if (region || district) map.flyToBounds(bounds, {
+      duration: district ? 1.25 : 1.55,
+      easeLinearity: 0.12,
+      maxZoom: district ? 12 : 10,
+      padding: district ? [18, 18] : [26, 26],
+    })
     else map.fitBounds(bounds, { animate: false, padding: [40, 40] })
   }, [country, district, map, region])
   return null
@@ -82,6 +87,7 @@ function App() {
   const [theme, setTheme] = useState(initialTheme)
   const [regions, setRegions] = useState(null)
   const [districts, setDistricts] = useState(null)
+  const [neighbors, setNeighbors] = useState(null)
   const [regionISO, setRegionISO] = useState(null)
   const [districtID, setDistrictID] = useState(null)
   const [hoverISO, setHoverISO] = useState(null)
@@ -97,9 +103,11 @@ function App() {
     Promise.all([
       fetch(`${base}data/uzbekistan-adm1.geojson`).then((r) => r.ok ? r.json() : Promise.reject(new Error('Viloyatlar fayli topilmadi'))),
       fetch(`${base}data/uzbekistan-adm2.geojson`).then((r) => r.ok ? r.json() : Promise.reject(new Error('Tumanlar fayli topilmadi'))),
-    ]).then(([adm1, adm2]) => {
+      fetch(`${base}data/neighboring-countries.geojson`).then((r) => r.ok ? r.json() : Promise.reject(new Error('Qo‘shni davlatlar fayli topilmadi'))),
+    ]).then(([adm1, adm2, nearby]) => {
       setRegions(adm1)
       setDistricts({ ...adm2, features: attachParents(adm2.features, adm1.features) })
+      setNeighbors(nearby)
     }).catch((reason) => setError(reason.message))
   }, [])
 
@@ -115,11 +123,29 @@ function App() {
 
   const regionStyle = (feature) => {
     const iso = feature.properties.shapeISO
-    return { color: theme === 'dark' ? '#dbe9ec' : '#fff', weight: regionISO === iso ? 3 : hoverISO === iso ? 2.5 : 1.4,
-      fillColor: getMeta(feature).color, fillOpacity: regionISO ? (regionISO === iso ? .88 : .1) : hoverISO === iso ? .96 : .78, className: 'region-shape' }
+    const active = regionISO === iso
+    const muted = Boolean(regionISO && !active)
+    return {
+      color: theme === 'dark' ? '#315f7a' : '#0b3554',
+      weight: active ? 3.6 : hoverISO === iso ? 3 : 2,
+      opacity: muted ? .38 : 1,
+      fillColor: active ? '#91c4b4' : '#78aa9b',
+      fillOpacity: muted ? .18 : hoverISO === iso ? .88 : .72,
+      className: `region-shape${active ? ' region-selected' : ''}${muted ? ' region-muted' : ''}${active && districtID ? ' region-under-focus' : ''}`,
+    }
   }
-  const districtStyle = (feature) => ({ color: theme === 'dark' ? '#dcf5f2' : '#174a51', weight: districtID === feature.properties.shapeID ? 2.8 : 1.1,
-    fillColor: districtID === feature.properties.shapeID ? '#ffd166' : getMeta(region).color, fillOpacity: districtID === feature.properties.shapeID ? .92 : .34, className: 'district-shape' })
+  const districtStyle = (feature) => {
+    const active = districtID === feature.properties.shapeID
+    const muted = Boolean(districtID && !active)
+    return {
+      color: theme === 'dark' ? '#3e718b' : '#092f4d',
+      weight: active ? 3.8 : 1.5,
+      opacity: muted ? .3 : 1,
+      fillColor: active ? '#a9d7c5' : '#82b3a4',
+      fillOpacity: muted ? .16 : active ? .95 : .5,
+      className: `district-shape${active ? ' district-selected' : ''}${muted ? ' district-muted' : ''}`,
+    }
+  }
 
   return <main className="app-shell">
     <header className="topbar">
@@ -137,12 +163,26 @@ function App() {
         <footer className="sidebar-footer"><span><i />Tarmoq talab qilinmaydi</span><small>Chegaralar: geoBoundaries</small></footer>
       </aside>
       <div className="map-shell">
-        {error ? <div className="status-card error"><strong>Xarita ochilmadi</strong><span>{error}</span></div> : !regions || !districts ? <div className="status-card"><span className="loader" /><strong>Lokal xarita yuklanmoqda…</strong></div> : <>
-          <MapContainer center={[41.25, 64.6]} zoom={5} minZoom={4} maxZoom={11} maxBounds={MAP_BOUNDS} maxBoundsViscosity={.72} zoomControl={false} attributionControl={false} zoomSnap={.25} className="map">
+        {error ? <div className="status-card error"><strong>Xarita ochilmadi</strong><span>{error}</span></div> : !regions || !districts || !neighbors ? <div className="status-card"><span className="loader" /><strong>Lokal xarita yuklanmoqda…</strong></div> : <>
+          <MapContainer center={[41.25, 64.6]} zoom={5} minZoom={4} maxZoom={12} maxBounds={MAP_BOUNDS} maxBoundsViscosity={.72} zoomControl={false} attributionControl={false} zoomSnap={.25} zoomAnimation fadeAnimation className="map">
             <ZoomControl position="bottomright" /><MapMotion country={regions} region={region} district={district} />
-            <GeoJSON key={`mask-${theme}`} data={mask} interactive={false} style={{ color: theme === 'dark' ? '#0b171a' : '#8e9b9c', weight: 1, fillColor: theme === 'dark' ? '#071013' : '#d6dcdb', fillOpacity: theme === 'dark' ? .84 : .8, fillRule: 'evenodd', className: 'outside-mask' }} />
-            <GeoJSON key={`r-${theme}-${regionISO}-${hoverISO}`} data={regions} style={regionStyle} onEachFeature={(feature, layer) => { const meta = getMeta(feature); layer.bindTooltip(meta.name, { permanent: !regionISO, direction: 'center', className: 'region-label' }); layer.on({ click: () => chooseRegion(feature.properties.shapeISO), mouseover: () => setHoverISO(feature.properties.shapeISO), mouseout: () => setHoverISO(null) }) }} />
-            {districtSet && <GeoJSON key={`d-${theme}-${regionISO}-${districtID}`} data={districtSet} style={districtStyle} onEachFeature={(feature, layer) => { layer.bindTooltip(feature.properties.shapeName, { sticky: true, className: 'district-tooltip' }); layer.on('click', () => setDistrictID(feature.properties.shapeID)) }} />}
+            <GeoJSON key={`mask-${theme}`} data={mask} interactive={false} style={{ color: theme === 'dark' ? '#071317' : '#667476', weight: 1, fillColor: theme === 'dark' ? '#040b0e' : '#aeb8b7', fillOpacity: theme === 'dark' ? .92 : .9, fillRule: 'evenodd', className: 'outside-mask' }} />
+            <GeoJSON
+              key={`neighbors-${theme}`}
+              data={neighbors}
+              interactive={false}
+              style={{
+                color: theme === 'dark' ? '#426075' : '#294f68',
+                weight: 1.5,
+                opacity: .46,
+                fillColor: theme === 'dark' ? '#26383e' : '#bac4c1',
+                fillOpacity: theme === 'dark' ? .34 : .4,
+                className: 'neighbor-country',
+              }}
+              onEachFeature={(feature, layer) => layer.bindTooltip(feature.properties.shapeName, { permanent: true, direction: 'center', className: 'country-label' })}
+            />
+            <GeoJSON key={`r-${theme}-${regionISO}-${hoverISO}`} data={regions} style={regionStyle} onEachFeature={(feature, layer) => { const meta = getMeta(feature); layer.bindTooltip(meta.name, { permanent: !regionISO, direction: 'center', className: 'region-label' }); if (feature.properties.shapeISO === regionISO) layer.on('add', () => layer.bringToFront()); layer.on({ click: () => chooseRegion(feature.properties.shapeISO), mouseover: () => setHoverISO(feature.properties.shapeISO), mouseout: () => setHoverISO(null) }) }} />
+            {districtSet && <GeoJSON key={`d-${theme}-${regionISO}-${districtID}`} data={districtSet} style={districtStyle} onEachFeature={(feature, layer) => { layer.bindTooltip(feature.properties.shapeName, { sticky: true, className: 'district-tooltip' }); if (feature.properties.shapeID === districtID) layer.on('add', () => layer.bringToFront()); layer.on('click', () => setDistrictID(feature.properties.shapeID)) }} />}
           </MapContainer>
           <div className="map-caption"><span className="caption-icon"><Icon name="locate" /></span><div><small>{district ? 'TANLANGAN TUMAN' : region ? 'TANLANGAN HUDUD' : 'INTERAKTIV XARITA'}</small><strong>{district?.properties.shapeName ?? regionName ?? '14 ma’muriy hudud'}</strong></div></div>
           <div className="map-legend"><span><i className="legend-country" />O‘zbekiston</span><span><i className="legend-outside" />Chegara tashqarisi</span></div>
