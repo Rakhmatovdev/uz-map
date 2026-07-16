@@ -8,7 +8,9 @@ UZMAP — O‘zbekistonning birinchi va ikkinchi darajali ma’muriy hududlarini
 
 ## Tayyor imkoniyatlar
 
-- O‘zbekistonning barcha 14 ta ADM1 hududi alohida rangda;
+- O‘zbekistonning barcha 14 ta ADM1 hududi sokin yashil fill va ko‘k chegaralarda;
+- xarita ustidagi responsive navbar, viloyat va tuman dropdown selectorlari;
+- local SVG tekstura orqali yo‘l, suv va relyefga o‘xshash fon chiziqlari;
 - tanlangan hududga `flyToBounds` orqali silliq yaqinlashish;
 - hudud tanlangach ADM2 — tuman va shahar chegaralarini ko‘rsatish;
 - tumanni bosganda yana silliq markazlashish;
@@ -62,10 +64,10 @@ npm run preview
 2. `App.jsx` ishga tushganda `public/data` ichidagi ADM1 va ADM2 GeoJSON fayllarni `fetch` qiladi. Bu so‘rov internetga emas, shu saytning lokal statik fayllariga boradi.
 3. Turf har bir tumandagi ishonchli ichki nuqtani topadi va qaysi ADM1 poligon ichiga tushganini tekshiradi. Natijada 199 ta ADM2 obyekt ota hududi bilan bog‘lanadi.
 4. ADM1 poligonlar asosida “teskari maska” yaratiladi: dunyo to‘rtburchagi ichidan O‘zbekiston geometriyasi teshik sifatida kesib olinadi. Maskaga xira rang va blur beriladi.
-5. Bosh ekranda 14 hudud alohida rang, chegara va label bilan chiziladi.
+5. Bosh ekranda 14 hudud yagona sokin rang, ko‘k chegara va label bilan chiziladi.
 6. Foydalanuvchi hududni bossa, React tanlangan ISO kodini saqlaydi. `MapMotion` kerakli bounds’ni hisoblab, `flyToBounds` animatsiyasini boshlaydi.
 7. Faqat tanlangan hududning tumanlari filtrlanib yangi GeoJSON qatlamida ko‘rsatiladi.
-8. Tuman bosilganda uning geometriyasiga yana yaqinlashadi; sidebar va xarita caption’i tanlov bilan birga yangilanadi.
+8. Tuman bosilganda uning geometriyasiga yana yaqinlashadi; navbar selectorlari va xarita statusi tanlov bilan birga yangilanadi.
 9. Theme tugmasi CSS variable’larni almashtiradi; tanlov keyingi ochilish uchun `localStorage`da qoladi.
 10. Production build vaqtida PWA plugin barcha JS, CSS, HTML, SVG va GeoJSON fayllarni service worker precache ro‘yxatiga kiritadi.
 
@@ -81,7 +83,7 @@ uz-map/
 │  └─ favicon.svg
 ├─ src/
 │  ├─ App.jsx                      # xarita logikasi va UI
-│  ├─ App.css                      # xarita/sidebar responsive dizayni
+│  ├─ App.css                      # full-screen xarita/navbar responsive dizayni
 │  ├─ index.css                    # theme tokenlari va global CSS
 │  └─ main.jsx                     # React entry point
 ├─ index.html
@@ -117,7 +119,7 @@ Ma’muriy nomlar manbada ingliz tilida bo‘lishi mumkin. ADM1 nomlari UI’da 
 - Hudud nomini almashtirish: shu obyekt ichidagi birinchi qiymat.
 - Animatsiya tezligini almashtirish: `MapMotion` ichidagi `duration`.
 - Dark/light ranglarini almashtirish: `src/index.css` ichidagi `:root` va `[data-theme='dark']`.
-- Sidebar va mobile layout: `src/App.css`.
+- Navbar, dropdown, xarita fon teksturasi va mobile layout: `src/App.css`.
 - Yangi GeoJSON ishlatish: eski fayl nomlarini saqlagan holda `public/data` ichidagi fayllarni almashtirish; property formatlari boshqacha bo‘lsa `shapeISO`, `shapeID`, `shapeName` mappingini ham yangilash.
 
 ## Ma’lum cheklovlar

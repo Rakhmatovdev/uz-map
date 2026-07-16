@@ -2,8 +2,12 @@
   --sans: 'Segoe UI', Arial, sans-serif; --display: 'Segoe UI', Arial, sans-serif; --mono: Consolas, monospace;
   --page: #edf2f0; --panel: #fbfdfc; --glass: rgba(251,253,252,.86); --soft: #f0f5f3;
   --text: #29474b; --heading: #122f34; --muted: #71878a; --faint: #a3b2b3;
-  --border: #dce6e3; --accent: #14777b; --accent-soft: #e3f1ef; --map-bg: #cbd4d1;
+  --border: #dce6e3; --accent: #14777b; --accent-soft: #e3f1ef; --map-bg: #a9b3b0;
   --map-line: rgba(33,67,78,.055); --map-vignette: rgba(27,51,57,.2); --terrain: rgba(56,101,94,.13);
+  --nav-bg: rgba(242,247,246,.94); --nav-border: #bac9c7; --nav-text: #10282d; --nav-muted: #668083;
+  --nav-control: #e7eeec; --nav-control-hover: #dce8e5; --nav-control-border: #aabdb9;
+  --mountain: rgba(52,70,64,.15); --terrain-line: rgba(46,68,64,.07); --contour: rgba(50,74,69,.16);
+  --road: rgba(121,85,27,.5); --water: rgba(20,101,143,.58); --map-dot: rgba(27,54,56,.18); --country-label: rgba(39,57,61,.55);
   color: var(--text); background: var(--page); font-family: var(--sans); font-synthesis: none;
   text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; color-scheme: light;
 }
@@ -12,6 +16,10 @@
   --text: #d2e2e3; --heading: #f0f7f6; --muted: #8ba2a5; --faint: #5f777a;
   --border: #273b3f; --accent: #5bd1c7; --accent-soft: #173b3c; --map-bg: #0b171b;
   --map-line: rgba(131,176,174,.04); --map-vignette: rgba(0,7,9,.36); --terrain: rgba(51,142,132,.11);
+  --nav-bg: rgba(5,12,22,.94); --nav-border: #20334a; --nav-text: #f2f6fb; --nav-muted: #91a5b7;
+  --nav-control: #101a2a; --nav-control-hover: #17253a; --nav-control-border: #2a3d55;
+  --mountain: rgba(85,96,77,.19); --terrain-line: rgba(116,132,107,.055); --contour: rgba(115,130,110,.11);
+  --road: rgba(165,103,18,.5); --water: rgba(30,112,165,.58); --map-dot: rgba(146,160,130,.12); --country-label: rgba(176,189,194,.35);
   color-scheme: dark;
 }
 * { box-sizing: border-box; }

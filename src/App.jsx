@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { GeoJSON, MapContainer, ZoomControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
@@ -6,37 +6,26 @@ import pointOnFeature from '@turf/point-on-feature'
 import './App.css'
 
 const MAP_BOUNDS = [[35.4, 51.4], [47.9, 77.2]]
-
-const REGION_META = {
-  'UZ-AN': ['Andijon', '#78aa9b'], 'UZ-BU': ['Buxoro', '#78aa9b'],
-  'UZ-FA': ['Farg‘ona', '#78aa9b'], 'UZ-JI': ['Jizzax', '#78aa9b'],
-  'UZ-NG': ['Namangan', '#78aa9b'], 'UZ-NW': ['Navoiy', '#78aa9b'],
-  'UZ-QA': ['Qashqadaryo', '#78aa9b'], 'UZ-QR': ['Qoraqalpog‘iston', '#78aa9b'],
-  'UZ-SA': ['Samarqand', '#78aa9b'], 'UZ-SI': ['Sirdaryo', '#78aa9b'],
-  'UZ-SU': ['Surxondaryo', '#78aa9b'], 'UZ-TK': ['Toshkent shahri', '#78aa9b'],
-  'UZ-TO': ['Toshkent viloyati', '#78aa9b'], 'UZ-XO': ['Xorazm', '#78aa9b'],
+const REGION_NAMES = {
+  'UZ-AN': 'Andijon viloyati', 'UZ-BU': 'Buxoro viloyati',
+  'UZ-FA': 'Farg‘ona viloyati', 'UZ-JI': 'Jizzax viloyati',
+  'UZ-NG': 'Namangan viloyati', 'UZ-NW': 'Navoiy viloyati',
+  'UZ-QA': 'Qashqadaryo viloyati', 'UZ-QR': 'Qoraqalpog‘iston Respublikasi',
+  'UZ-SA': 'Samarqand viloyati', 'UZ-SI': 'Sirdaryo viloyati',
+  'UZ-SU': 'Surxondaryo viloyati', 'UZ-TK': 'Toshkent shahri',
+  'UZ-TO': 'Toshkent viloyati', 'UZ-XO': 'Xorazm viloyati',
 }
+const COUNTRY_NAMES = { KAZ: 'Qozog‘iston', KGZ: 'Qirg‘iziston', TJK: 'Tojikiston', TKM: 'Turkmaniston', AFG: 'Afg‘oniston' }
+const DISTRICT_PARENT_FALLBACK = { Khazarasp: 'UZ-XO', Sokh: 'UZ-FA', 'Shirin city': 'UZ-SI' }
 
-// Datasetdagi uchta chegara/enklav geometriyasi ADM1 bilan to‘liq ustma-ust
-// tushmaydi, shuning uchun ularning rasmiy ota hududi aniq ko‘rsatiladi.
-const DISTRICT_PARENT_FALLBACK = {
-  Khazarasp: 'UZ-XO',
-  Sokh: 'UZ-FA',
-  'Shirin city': 'UZ-SI',
-}
-
-const getMeta = (feature) => {
-  const [name, color] = REGION_META[feature?.properties.shapeISO] ?? [feature?.properties.shapeName, '#4da8da']
-  return { name, color }
-}
+const regionName = (feature) => REGION_NAMES[feature?.properties.shapeISO] ?? feature?.properties.shapeName ?? ''
 
 function initialTheme() {
   const saved = localStorage.getItem('uzmap-theme')
-  if (saved === 'dark' || saved === 'light') return saved
-  return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  return saved === 'light' || saved === 'dark' ? saved : 'dark'
 }
 
-function outsideMask(features) {
+function makeOutsideMask(features) {
   const holes = []
   features.forEach(({ geometry }) => {
     if (geometry.type === 'Polygon') holes.push(geometry.coordinates[0])
@@ -49,38 +38,61 @@ function outsideMask(features) {
 
 function attachParents(districts, regions) {
   return districts.map((district) => {
-    const point = pointOnFeature(district)
-    const parent = regions.find((region) => booleanPointInPolygon(point, region))
+    const parent = regions.find((region) => booleanPointInPolygon(pointOnFeature(district), region))
     return { ...district, properties: { ...district.properties, parentISO: parent?.properties.shapeISO ?? DISTRICT_PARENT_FALLBACK[district.properties.shapeName] ?? null } }
   })
 }
 
-function MapMotion({ country, region, district }) {
+function MapMotion({ country, region, district, resetSignal }) {
   const map = useMap()
   useEffect(() => {
     const target = district ?? region ?? country
     if (!target) return
     const bounds = L.geoJSON(target).getBounds()
     if (region || district) map.flyToBounds(bounds, {
-      duration: district ? 1.25 : 1.55,
-      easeLinearity: 0.12,
-      maxZoom: district ? 12 : 10,
-      padding: district ? [18, 18] : [26, 26],
+      duration: district ? 1.15 : 1.5,
+      easeLinearity: 0.1,
+      maxZoom: district ? 12 : 9.5,
+      paddingTopLeft: district ? [24, 92] : [42, 110],
+      paddingBottomRight: district ? [24, 24] : [42, 42],
     })
-    else map.fitBounds(bounds, { animate: false, padding: [40, 40] })
-  }, [country, district, map, region])
+    else map.fitBounds(bounds, { animate: Boolean(resetSignal), padding: [54, 54] })
+  }, [country, district, map, region, resetSignal])
   return null
 }
 
 function Icon({ name }) {
-  const paths = {
+  const path = {
     moon: <path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z" />,
-    sun: <><circle cx="12" cy="12" r="3.5" /><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>,
-    back: <path d="m15 18-6-6 6-6" />,
-    locate: <><circle cx="12" cy="12" r="3" /><path d="M12 2v3m0 14v3M2 12h3m14 0h3" /></>,
-    layers: <><path d="m12 2-9 5 9 5 9-5-9-5Z" /><path d="m3 12 9 5 9-5M3 17l9 5 9-5" /></>,
+    sun: <><circle cx="12" cy="12" r="3.5"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></>,
+    pin: <><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></>,
+    reset: <path d="M4.9 7.5A8 8 0 1 1 4 15m.9-7.5H2m2.9 0V4.6"/>,
+    expand: <path d="M8 3H3v5m13-5h5v5M8 21H3v-5m13 5h5v-5"/>,
+    layers: <><path d="m12 2-9 5 9 5 9-5-9-5Z"/><path d="m3 12 9 5 9-5M3 17l9 5 9-5"/></>,
+    chevron: <path d="m7 10 5 5 5-5"/>,
+    arrow: <path d="m9 18 6-6-6-6"/>,
   }
-  return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>
+  return <svg viewBox="0 0 24 24" aria-hidden="true">{path[name]}</svg>
+}
+
+function MapTexture() {
+  return <div className="map-texture" aria-hidden="true">
+    <svg viewBox="0 0 1600 900" preserveAspectRatio="none">
+      <g className="terrain-lines">
+        <path d="M-40 160C180 80 300 250 510 168S820 80 1010 180s340 80 630-34" />
+        <path d="M-60 245c190-95 370 80 560 15s350-150 555-30 380 82 600-15" />
+        <path d="M-30 690c200-120 360 75 590-60s370-20 540 55 330-35 560-80" />
+        <path d="M160 930c-15-220 170-290 110-490S370 90 540-30" />
+        <path d="M1050 950c-100-180 90-320 10-490S1110 100 1330-30" />
+      </g>
+      <g className="road-lines">
+        <path d="M-20 470C240 380 390 520 620 390s420-10 570-80 260-30 440 40" />
+        <path d="M120 0c40 170 230 230 220 410s210 260 190 520" />
+        <path d="M1480-20c-190 180-160 350-310 450S940 680 870 930" />
+      </g>
+      <g className="water-lines"><path d="M-20 550c280-80 400 115 640 15s470-40 620 20 260 35 390-15" /></g>
+    </svg>
+  </div>
 }
 
 function App() {
@@ -90,13 +102,30 @@ function App() {
   const [neighbors, setNeighbors] = useState(null)
   const [regionISO, setRegionISO] = useState(null)
   const [districtID, setDistrictID] = useState(null)
-  const [hoverISO, setHoverISO] = useState(null)
+  const [regionMenu, setRegionMenu] = useState(false)
+  const [districtMenu, setDistrictMenu] = useState(false)
+  const [resetSignal, setResetSignal] = useState(0)
+  const [clock, setClock] = useState(new Date())
   const [error, setError] = useState('')
+  const navRef = useRef(null)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     localStorage.setItem('uzmap-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    const timer = setInterval(() => setClock(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    const closeMenus = (event) => {
+      if (!navRef.current?.contains(event.target)) { setRegionMenu(false); setDistrictMenu(false) }
+    }
+    document.addEventListener('pointerdown', closeMenus)
+    return () => document.removeEventListener('pointerdown', closeMenus)
+  }, [])
 
   useEffect(() => {
     const base = import.meta.env.BASE_URL
@@ -114,81 +143,94 @@ function App() {
   const region = useMemo(() => regions?.features.find((f) => f.properties.shapeISO === regionISO) ?? null, [regionISO, regions])
   const districtSet = useMemo(() => districts && regionISO ? { ...districts, features: districts.features.filter((f) => f.properties.parentISO === regionISO) } : null, [districts, regionISO])
   const district = useMemo(() => districtSet?.features.find((f) => f.properties.shapeID === districtID) ?? null, [districtID, districtSet])
-  const mask = useMemo(() => regions ? outsideMask(regions.features) : null, [regions])
-  const ordered = useMemo(() => regions ? [...regions.features].sort((a, b) => getMeta(a).name.localeCompare(getMeta(b).name, 'uz')) : [], [regions])
+  const mask = useMemo(() => regions ? makeOutsideMask(regions.features) : null, [regions])
+  const orderedRegions = useMemo(() => regions ? [...regions.features].sort((a, b) => regionName(a).localeCompare(regionName(b), 'uz')) : [], [regions])
+  const orderedDistricts = useMemo(() => districtSet ? [...districtSet.features].sort((a, b) => a.properties.shapeName.localeCompare(b.properties.shapeName)) : [], [districtSet])
 
-  const chooseRegion = (iso) => { setDistrictID(null); setRegionISO(iso) }
-  const reset = () => { setDistrictID(null); setRegionISO(null) }
-  const regionName = region ? getMeta(region).name : null
+  const chooseRegion = (iso) => { setDistrictID(null); setRegionISO(iso); setRegionMenu(false); setDistrictMenu(false) }
+  const chooseDistrict = (id) => { setDistrictID(id); setDistrictMenu(false) }
+  const reset = () => { setDistrictID(null); setRegionISO(null); setResetSignal((value) => value + 1); setRegionMenu(false); setDistrictMenu(false) }
+  const toggleFullscreen = async () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()
 
   const regionStyle = (feature) => {
-    const iso = feature.properties.shapeISO
-    const active = regionISO === iso
+    const active = feature.properties.shapeISO === regionISO
     const muted = Boolean(regionISO && !active)
     return {
-      color: theme === 'dark' ? '#315f7a' : '#0b3554',
-      weight: active ? 3.6 : hoverISO === iso ? 3 : 2,
-      opacity: muted ? .38 : 1,
-      fillColor: active ? '#91c4b4' : '#78aa9b',
-      fillOpacity: muted ? .18 : hoverISO === iso ? .88 : .72,
+      color: theme === 'dark' ? '#3377b8' : '#14508a', weight: active ? 3.2 : 1.6,
+      opacity: muted ? .2 : .82, fillColor: active ? '#1f863c' : '#3b6b50',
+      fillOpacity: muted ? .08 : active ? .42 : .27,
       className: `region-shape${active ? ' region-selected' : ''}${muted ? ' region-muted' : ''}${active && districtID ? ' region-under-focus' : ''}`,
     }
   }
   const districtStyle = (feature) => {
-    const active = districtID === feature.properties.shapeID
+    const active = feature.properties.shapeID === districtID
     const muted = Boolean(districtID && !active)
     return {
-      color: theme === 'dark' ? '#3e718b' : '#092f4d',
-      weight: active ? 3.8 : 1.5,
-      opacity: muted ? .3 : 1,
-      fillColor: active ? '#a9d7c5' : '#82b3a4',
-      fillOpacity: muted ? .16 : active ? .95 : .5,
+      color: active ? '#59a2ff' : '#347fd2', weight: active ? 3.5 : 2,
+      opacity: muted ? .24 : 1, fillColor: active ? '#28d866' : '#17b94f',
+      fillOpacity: muted ? .12 : active ? .85 : .64,
       className: `district-shape${active ? ' district-selected' : ''}${muted ? ' district-muted' : ''}`,
     }
   }
 
+  const month = ['YAN', 'FEV', 'MAR', 'APR', 'MAY', 'IYUN', 'IYUL', 'AVG', 'SEN', 'OKT', 'NOY', 'DEK'][clock.getMonth()]
+  const dateLabel = `${clock.getDate()} ${month}, ${clock.getFullYear()}`
+  const timeLabel = clock.toLocaleTimeString('uz-UZ', { hour12: false })
+
   return <main className="app-shell">
-    <header className="topbar">
-      <button className="brand" onClick={reset} aria-label="Bosh xaritaga qaytish"><span className="brand-mark"><Icon name="layers" /></span><span><strong>UZMAP</strong><small>O‘zbekiston ma’muriy xaritasi</small></span></button>
-      <div className="topbar-actions"><span className="offline-badge"><i />100% offline</span><button className="icon-button" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Rang rejimini almashtirish"><Icon name={theme === 'dark' ? 'sun' : 'moon'} /></button></div>
-    </header>
-    <section className="workspace">
-      <aside className="sidebar">
-        <div className="sidebar-heading"><span className="eyebrow">HUDUDLAR KATALOGI</span><h1>{regionName ?? 'O‘zbekiston'}</h1><p>{regionName ? `${districtSet?.features.length ?? 0} ta tuman va shahar. Xaritada hududni tanlang.` : 'Viloyatni tanlang — xarita avtomatik yaqinlashib, tumanlar kesimini ochadi.'}</p></div>
-        {region ? <div className="district-panel">
-          <button className="back-button" onClick={reset}><Icon name="back" />Barcha hududlar</button>
-          <div className="panel-stat"><span style={{ background: getMeta(region).color }} /><div><strong>{regionName}</strong><small>{districtSet?.features.length ?? 0} ma’muriy birlik</small></div></div>
-          <div className="district-list">{districtSet?.features.slice().sort((a, b) => a.properties.shapeName.localeCompare(b.properties.shapeName)).map((item, i) => <button className={districtID === item.properties.shapeID ? 'active' : ''} key={item.properties.shapeID} onClick={() => setDistrictID(item.properties.shapeID)}><span>{String(i + 1).padStart(2, '0')}</span>{item.properties.shapeName}</button>)}</div>
-        </div> : <div className="region-list">{ordered.map((item, i) => { const meta = getMeta(item); return <button key={item.properties.shapeISO} onClick={() => chooseRegion(item.properties.shapeISO)} onMouseEnter={() => setHoverISO(item.properties.shapeISO)} onMouseLeave={() => setHoverISO(null)}><span className="region-index">{String(i + 1).padStart(2, '0')}</span><i style={{ background: meta.color }} /><strong>{meta.name}</strong><span className="chevron">›</span></button> })}</div>}
-        <footer className="sidebar-footer"><span><i />Tarmoq talab qilinmaydi</span><small>Chegaralar: geoBoundaries</small></footer>
-      </aside>
-      <div className="map-shell">
-        {error ? <div className="status-card error"><strong>Xarita ochilmadi</strong><span>{error}</span></div> : !regions || !districts || !neighbors ? <div className="status-card"><span className="loader" /><strong>Lokal xarita yuklanmoqda…</strong></div> : <>
-          <MapContainer center={[41.25, 64.6]} zoom={5} minZoom={4} maxZoom={12} maxBounds={MAP_BOUNDS} maxBoundsViscosity={.72} zoomControl={false} attributionControl={false} zoomSnap={.25} zoomAnimation fadeAnimation className="map">
-            <ZoomControl position="bottomright" /><MapMotion country={regions} region={region} district={district} />
-            <GeoJSON key={`mask-${theme}`} data={mask} interactive={false} style={{ color: theme === 'dark' ? '#071317' : '#667476', weight: 1, fillColor: theme === 'dark' ? '#040b0e' : '#aeb8b7', fillOpacity: theme === 'dark' ? .92 : .9, fillRule: 'evenodd', className: 'outside-mask' }} />
-            <GeoJSON
-              key={`neighbors-${theme}`}
-              data={neighbors}
-              interactive={false}
-              style={{
-                color: theme === 'dark' ? '#426075' : '#294f68',
-                weight: 1.5,
-                opacity: .46,
-                fillColor: theme === 'dark' ? '#26383e' : '#bac4c1',
-                fillOpacity: theme === 'dark' ? .34 : .4,
-                className: 'neighbor-country',
-              }}
-              onEachFeature={(feature, layer) => layer.bindTooltip(feature.properties.shapeName, { permanent: true, direction: 'center', className: 'country-label' })}
-            />
-            <GeoJSON key={`r-${theme}-${regionISO}-${hoverISO}`} data={regions} style={regionStyle} onEachFeature={(feature, layer) => { const meta = getMeta(feature); layer.bindTooltip(meta.name, { permanent: !regionISO, direction: 'center', className: 'region-label' }); if (feature.properties.shapeISO === regionISO) layer.on('add', () => layer.bringToFront()); layer.on({ click: () => chooseRegion(feature.properties.shapeISO), mouseover: () => setHoverISO(feature.properties.shapeISO), mouseout: () => setHoverISO(null) }) }} />
-            {districtSet && <GeoJSON key={`d-${theme}-${regionISO}-${districtID}`} data={districtSet} style={districtStyle} onEachFeature={(feature, layer) => { layer.bindTooltip(feature.properties.shapeName, { sticky: true, className: 'district-tooltip' }); if (feature.properties.shapeID === districtID) layer.on('add', () => layer.bringToFront()); layer.on('click', () => setDistrictID(feature.properties.shapeID)) }} />}
-          </MapContainer>
-          <div className="map-caption"><span className="caption-icon"><Icon name="locate" /></span><div><small>{district ? 'TANLANGAN TUMAN' : region ? 'TANLANGAN HUDUD' : 'INTERAKTIV XARITA'}</small><strong>{district?.properties.shapeName ?? regionName ?? '14 ma’muriy hudud'}</strong></div></div>
-          <div className="map-legend"><span><i className="legend-country" />O‘zbekiston</span><span><i className="legend-outside" />Chegara tashqarisi</span></div>
-        </>}
-      </div>
-    </section>
+    <div className="map-shell">
+      <MapTexture />
+      {error ? <div className="status-card error"><strong>Xarita ochilmadi</strong><span>{error}</span></div> : !regions || !districts || !neighbors ? <div className="status-card"><span className="loader"/><strong>Lokal xarita yuklanmoqda…</strong></div> : <>
+        <MapContainer center={[41.25, 64.6]} zoom={5} minZoom={4} maxZoom={12} maxBounds={MAP_BOUNDS} maxBoundsViscosity={.72} zoomControl={false} attributionControl={false} zoomSnap={.25} className="map">
+          <ZoomControl position="topright" />
+          <MapMotion country={regions} region={region} district={district} resetSignal={resetSignal} />
+          <GeoJSON key={`mask-${theme}`} data={mask} interactive={false} style={{ color: 'transparent', fillColor: theme === 'dark' ? '#070b0f' : '#aeb6b4', fillOpacity: theme === 'dark' ? .72 : .72, fillRule: 'evenodd', className: 'outside-mask' }} />
+          <GeoJSON key={`neighbors-${theme}`} data={neighbors} interactive={false} style={{ color: theme === 'dark' ? '#456171' : '#536d76', weight: 1.1, opacity: .35, fillColor: theme === 'dark' ? '#252b2c' : '#aab3b0', fillOpacity: .22, className: 'neighbor-country' }} onEachFeature={(feature, layer) => layer.bindTooltip(COUNTRY_NAMES[feature.properties.countryCode] ?? feature.properties.shapeName, { permanent: true, direction: 'center', className: 'country-label' })} />
+          <GeoJSON key={`regions-${theme}-${regionISO}-${districtID}`} data={regions} style={regionStyle} onEachFeature={(feature, layer) => {
+            layer.bindTooltip(regionName(feature), { permanent: !regionISO, direction: 'center', className: 'region-label' })
+            if (feature.properties.shapeISO === regionISO) layer.on('add', () => layer.bringToFront())
+            layer.on('click', () => chooseRegion(feature.properties.shapeISO))
+          }} />
+          {districtSet && <GeoJSON key={`districts-${regionISO}-${districtID}`} data={districtSet} style={districtStyle} onEachFeature={(feature, layer) => {
+            layer.bindTooltip(feature.properties.shapeName, { permanent: !districtID, direction: 'center', className: 'district-label' })
+            if (feature.properties.shapeID === districtID) layer.on('add', () => layer.bringToFront())
+            layer.on('click', () => chooseDistrict(feature.properties.shapeID))
+          }} />}
+        </MapContainer>
+
+        <header className="floating-navbar" ref={navRef}>
+          <button className="nav-brand" onClick={reset} aria-label="O‘zbekiston xaritasiga qaytish"><span><Icon name="layers"/></span><strong>UZMAP</strong></button>
+          <div className="nav-stat clock-stat"><small>{dateLabel}</small><strong>{timeLabel}</strong></div>
+          <div className="nav-stat" title="Offline demo ko‘rsatkich"><small>AQI</small><strong>200.0</strong></div>
+          <div className="nav-stat" title="Offline demo ko‘rsatkich"><small>Harorat</small><strong>+24°C</strong></div>
+
+          <div className="nav-select region-select">
+            <button className={regionMenu ? 'open' : ''} onClick={() => { setRegionMenu(!regionMenu); setDistrictMenu(false) }}>
+              <span>{region ? regionName(region) : 'Viloyatni tanlang'}</span><Icon name="chevron"/>
+            </button>
+            {regionMenu && <div className="select-menu">{orderedRegions.map((item) => <button className={item.properties.shapeISO === regionISO ? 'active' : ''} key={item.properties.shapeISO} onClick={() => chooseRegion(item.properties.shapeISO)}><span>{regionName(item)}</span><Icon name="arrow"/></button>)}</div>}
+          </div>
+
+          {region && <div className="nav-select district-select">
+            <button className={districtMenu ? 'open' : ''} onClick={() => { setDistrictMenu(!districtMenu); setRegionMenu(false) }}>
+              <span>{district?.properties.shapeName ?? 'Tumanni tanlang'}</span><Icon name="chevron"/>
+            </button>
+            {districtMenu && <div className="select-menu district-menu">{orderedDistricts.map((item) => <button className={item.properties.shapeID === districtID ? 'active' : ''} key={item.properties.shapeID} onClick={() => chooseDistrict(item.properties.shapeID)}><span>{item.properties.shapeName}</span><Icon name="arrow"/></button>)}</div>}
+          </div>}
+
+          <button className="language-button">O‘zbekcha <Icon name="chevron"/></button>
+        </header>
+
+        <div className="map-actions">
+          <button onClick={reset} title="O‘zbekistonni ko‘rsatish"><Icon name="pin"/></button>
+          <button onClick={() => setResetSignal((value) => value + 1)} title="Xaritani qayta markazlash"><Icon name="reset"/></button>
+          <button onClick={toggleFullscreen} title="To‘liq ekran"><Icon name="expand"/></button>
+          <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Rang rejimi"><Icon name={theme === 'dark' ? 'sun' : 'moon'}/></button>
+        </div>
+
+        <div className="map-status"><i/><span>{district?.properties.shapeName ?? (region ? regionName(region) : 'O‘zbekiston')}</span><small>OFFLINE XARITA</small></div>
+      </>}
+    </div>
   </main>
 }
 
