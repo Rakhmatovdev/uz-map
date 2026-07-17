@@ -24,3 +24,9 @@ dist-ssr
 *.sw?
 
 .vercel
+.env.local
+
+# Generated local offline street packages (large binary files)
+public/offline/*.pmtiles
+public/offline/*.mbtiles
+.env*
